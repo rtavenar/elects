@@ -2,6 +2,7 @@ import torch
 from models.DualOutputRNN import DualOutputRNN
 from models.ConvShapeletModel import ConvShapeletModel
 from datasets.UCR_Dataset import UCRDataset
+from datasets.BavarianCrops_Dataset import BavarianCropsDataset
 from datasets.Synthetic_Dataset import SyntheticDataset
 import argparse
 from argparse import Namespace
@@ -170,6 +171,7 @@ def train(args):
 
     args.nclasses = traindataloader.dataset.nclasses
     args.seqlength = traindataloader.dataset.sequencelength
+    args.input_dims = traindataloader.dataset.ndims
     model = getModel(args)
 
     visdomenv = "{}_{}_{}".format(args.experiment, args.dataset, args.loss_mode.replace("_","-"))
@@ -197,6 +199,10 @@ def getDataloader(dataset, partition, train_valid_split_ratio=0.75,train_valid_s
 
     if dataset == "synthetic":
         torchdataset = SyntheticDataset(num_samples=2000, T=100)
+    if dataset == "BavarianCrops":
+        region = "HOLL_2018_MT_pilot"
+        root = "/data/BavarianCrops"
+        torchdataset = BavarianCropsDataset(root=root, region=region, partition=partition       )
     else:
         torchdataset = UCRDataset(dataset, partition=partition, ratio=train_valid_split_ratio, randomstate=train_valid_split_seed)
 
@@ -211,12 +217,12 @@ def getDataloader(dataset, partition, train_valid_split_ratio=0.75,train_valid_s
 def getModel(args):
     # Get Model
     if args.model == "DualOutputRNN":
-        model = DualOutputRNN(input_dim=1, nclasses=args.nclasses, hidden_dims=args.hidden_dims,
+        model = DualOutputRNN(input_dim=args.input_dims, nclasses=args.nclasses, hidden_dims=args.hidden_dims,
                               num_rnn_layers=args.num_layers, dropout=args.dropout)
     elif args.model == "Conv1D":
         model = ConvShapeletModel(num_layers=args.num_layers,
                                   hidden_dims=args.hidden_dims,
-                                  ts_dim=1,
+                                  ts_dim=args.input_dims,
                                   n_classes=args.nclasses,
                                   use_time_as_feature=True,
                                   seqlength=args.seqlength,

@@ -243,7 +243,13 @@ class Trainer():
 
             stats = metric.add(stats)
 
-            stats["accuracy"] = metric.update_confmat(targets.mode(1)[0].detach().cpu().numpy(), prediction.detach().cpu().numpy())
+            accuracy_metrics = metric.update_confmat(targets.mode(1)[0].detach().cpu().numpy(), prediction.detach().cpu().numpy())
+            stats["accuracy"] = accuracy_metrics["accuracy"]
+            stats["mean_accuracy"] = accuracy_metrics["accuracy"].mean()
+            stats["mean_recall"] = accuracy_metrics["recall"].mean()
+            stats["mean_precision"] = accuracy_metrics["precision"].mean()
+            stats["mean_f1"] = accuracy_metrics["f1"].mean()
+            stats["kappa"] = accuracy_metrics["kappa"]
             earliness = (t_stop.float()/(inputs.shape[1]-1)).mean()
             stats["earliness"] = metric.update_earliness(earliness.cpu().detach().numpy())
 
@@ -274,9 +280,15 @@ class Trainer():
 
                 stats = metric.add(stats)
 
-                stats["accuracy"] = metric.update_confmat(targets.mode(1)[0].detach().cpu().numpy(),
-                                                          prediction.detach().cpu().numpy())
-                earliness = (t_stop.float()/(inputs.shape[1]-1)).mean()
+                accuracy_metrics = metric.update_confmat(targets.mode(1)[0].detach().cpu().numpy(),
+                                                         prediction.detach().cpu().numpy())
+                stats["accuracy"] = accuracy_metrics["accuracy"]
+                stats["mean_accuracy"] = accuracy_metrics["accuracy"].mean()
+                stats["mean_recall"] = accuracy_metrics["recall"].mean()
+                stats["mean_precision"] = accuracy_metrics["precision"].mean()
+                stats["mean_f1"] = accuracy_metrics["f1"].mean()
+                stats["kappa"] = accuracy_metrics["kappa"]
+                earliness = (t_stop.float() / (inputs.shape[1] - 1)).mean()
                 stats["earliness"] = metric.update_earliness(earliness.cpu().detach().numpy())
 
             stats["confusion_matrix"] = metric.hist

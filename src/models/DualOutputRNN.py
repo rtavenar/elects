@@ -14,7 +14,7 @@ class DualOutputRNN(EarlyClassificationModel):
 
         self.nclasses=nclasses
 
-        self.lstm = nn.LSTM(input_size=input_dim, hidden_size=hidden_dims, num_layers=num_rnn_layers, bias=False, batch_first=True, dropout=dropout)
+        self.lstm = nn.LSTM(input_size=input_dim, hidden_size=hidden_dims, num_layers=num_rnn_layers, bias=False, batch_first=True, dropout=dropout, bidirectional=False)
         self.bn = nn.BatchNorm1d(hidden_dims)
 
         self.linear_class = nn.Linear(hidden_dims,nclasses, bias=True)
