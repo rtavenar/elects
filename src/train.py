@@ -6,10 +6,11 @@ from datasets.BavarianCrops_Dataset import BavarianCropsDataset
 from datasets.Synthetic_Dataset import SyntheticDataset
 import argparse
 from argparse import Namespace
-from utils.trainer import Trainer
+from utils.accuracytrainer import Trainer
 import pandas as pd
 import os
 import numpy as np
+from models.wavenet_model import WaveNetModel
 
 def parse_args():
     parser = argparse.ArgumentParser()
@@ -201,8 +202,8 @@ def getDataloader(dataset, partition, train_valid_split_ratio=0.75,train_valid_s
         torchdataset = SyntheticDataset(num_samples=2000, T=100)
     if dataset == "BavarianCrops":
         region = "HOLL_2018_MT_pilot"
-        root = "/data/BavarianCrops"
-        torchdataset = BavarianCropsDataset(root=root, region=region, partition=partition       )
+        root = "/home/marc/data/BavarianCrops"
+        torchdataset = BavarianCropsDataset(root=root, region=region, partition=partition, nsamples=100)
     else:
         torchdataset = UCRDataset(dataset, partition=partition, ratio=train_valid_split_ratio, randomstate=train_valid_split_seed)
 
@@ -219,6 +220,22 @@ def getModel(args):
     if args.model == "DualOutputRNN":
         model = DualOutputRNN(input_dim=args.input_dims, nclasses=args.nclasses, hidden_dims=args.hidden_dims,
                               num_rnn_layers=args.num_layers, dropout=args.dropout)
+    elif args.model == "WaveNet":
+
+        model = WaveNetModel(
+                 layers=5,
+                 blocks=4,
+                 dilation_channels=32,
+                 residual_channels=32,
+                 skip_channels=256,
+                 end_channels=args.nclasses,
+                 classes=args.nclasses,
+                 output_length=1,
+                 kernel_size=2,
+                 dtype=torch.FloatTensor,
+                 input_dims=args.input_dims,
+                 bias=False)
+
     elif args.model == "Conv1D":
         model = ConvShapeletModel(num_layers=args.num_layers,
                                   hidden_dims=args.hidden_dims,

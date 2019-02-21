@@ -79,7 +79,7 @@ class VisdomLogger():
 
             plt.rcParams['figure.figsize'] = (12, 12)
             #sn.set(font_scale=1.4)  # for label size
-            ax = sn.heatmap(cm, annot=False, annot_kws={"size": 11})  # font size
+            ax = sn.heatmap(cm, annot=True, annot_kws={"size": 11})  # font size
             ax.set(xlabel='ground truth', ylabel='predicted', title="Confusion Matrix")
             plt.tight_layout()
             opts = dict(
