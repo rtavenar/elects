@@ -47,6 +47,7 @@ class UCRDataset(torch.utils.data.Dataset):
         X_trainvalid, y_trainvalid, X_test, y_test = self.dataset.load_dataset(name)
 
         self.nclasses = len(np.unique(np.append(y_test, y_trainvalid,axis=0)))
+        self.ndims = 1 # UCR datasets have one featuredimension
 
         train_mask = r.rand(len(X_trainvalid)) < ratio
         valid_mask = np.logical_not(train_mask)

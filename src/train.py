@@ -197,10 +197,10 @@ def train(args):
     #                               region=region)
 
     args.nclasses = traindataloader.dataset.nclasses
-    args.seqlength = traindataloader.dataset.sequencelengths.max()
+    args.seqlength = traindataloader.dataset.sequencelength
     args.input_dims = traindataloader.dataset.ndims
     model = getModel(args)
-
+    # np.array([np.array(p.shape).prod() for p in model.parameters()]).sum()
     visdomenv = "{}_{}_{}".format(args.experiment, args.dataset, args.loss_mode.replace("_","-"))
 
     config = dict(

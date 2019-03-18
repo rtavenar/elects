@@ -51,8 +51,10 @@ class Trainer():
         #self.optimizer = torch.optim.SGD(model.parameters(), lr=0.1, momentum=0.9)
         self.resume_optimizer = resume_optimizer
         self.earliness_reward_power = earliness_reward_power
+        self.save_logger = False
 
-        self.classweights = torch.FloatTensor(traindataloader.dataset.classweights).cuda()
+        if hasattr(traindataloader.dataset,"classweights"):
+            self.classweights = torch.FloatTensor(traindataloader.dataset.classweights).cuda()
 
         if visdomenv is not None:
             self.visdom = VisdomLogger(env=visdomenv)
@@ -149,7 +151,8 @@ class Trainer():
         self.check_events()
 
         # stores all stored values in the rootpath of the logger
-        self.logger.save()
+        if self.save_logger:
+            self.logger.save()
 
         return self.logger.data
 
@@ -160,8 +163,8 @@ class Trainer():
     def visdom_log_test_run(self, stats):
 
 
-
-        self.visdom.plot_boxplot(labels=stats["labels"], t_stops=stats["t_stops"], tmin=0, tmax=self.traindataloader.dataset.samplet)
+        if hasattr(self.traindataloader.dataset,"samplet"):
+            self.visdom.plot_boxplot(labels=stats["labels"], t_stops=stats["t_stops"], tmin=0, tmax=self.traindataloader.dataset.samplet)
 
         self.visdom.confusion_matrix(stats["confusion_matrix"], norm=None, title="Confusion Matrix")
         self.visdom.confusion_matrix(stats["confusion_matrix"], norm=0, title="Recall")

@@ -51,6 +51,8 @@ class BavarianCropsDataset(torch.utils.data.Dataset):
             print("precached dataset files found at "+self.cache)
             self.cache_dataset()
 
+        self.sequencelength = self.sequencelength
+
         print("loaded {} samples".format(len(self.ids)))
         #print("class frequencies " + ", ".join(["{c}:{h}".format(h=h, c=c) for h, c in zip(self.hist, self.classes)]))
 
