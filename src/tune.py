@@ -111,12 +111,15 @@ def get_hyperparameter_search_space(experiment, args):
         return dict(
             batchsize=args.batchsize,
             workers=2,
-            epochs=1, # will be overwritten by training_iteration criterion
-            switch_epoch=9999,
+            epochs=50, # will be overwritten by training_iteration criterion
+            switch_epoch=-1,
             earliness_factor=1,
+            loss_mode="twophase_cross_entropy",
             fold=tune.grid_search([0]),
             hidden_dims=tune.grid_search([25,50]),
             learning_rate=tune.grid_search([1e-2]),
+            ptsepsilon=tune.grid_search([0]),
+            lossmode=tune.grid_search(["earliness_reward","twophase_cross_entropy"]),
             num_layers=tune.grid_search([1]),
             dataset=args.dataset,
             drop_probability=0.5,
@@ -208,7 +211,8 @@ def tune_mori_datasets(args):
 
     # start ray server
     if not ray.is_initialized():
-        ray.init(include_webui=False)
+        #ray.init(include_webui=False)
+        ray.init(redis_address="10.152.57.13:6379")
 
     for dataset in datasets:
         args.dataset = dataset
@@ -315,7 +319,7 @@ class RayTrainerDualOutputRNN(ray.tune.Trainable):
         for i in range(self.epochs):
             self.trainer.train_epoch(epoch=None)
 
-        return self.trainer.test_epoch(epoch=None)
+        return self.trainer.test_epoch(dataloader=self.validdataloader)
 
     def _save(self, path):
         path = path + ".pth"
@@ -374,7 +378,7 @@ class RayTrainerConv1D(ray.tune.Trainable):
         for i in range(self.epochs):
             self.trainer.train_epoch(epoch=None)
 
-        return self.trainer.test_epoch(epoch=None)
+        return self.trainer.test_epoch(dataloader=self.validdataloader)
 
     def _save(self, path):
         path = path + ".pth"
