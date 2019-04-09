@@ -27,6 +27,7 @@ class ConvShapeletModel(EarlyClassificationModel):
         self.X_fit_ = None
         self.y_fit_ = None
         self.use_time_as_feature = use_time_as_feature
+        self.d_model = hidden_dims
 
         self.seqlength = seqlength
         self.scaleshapeletsize = scaleshapeletsize

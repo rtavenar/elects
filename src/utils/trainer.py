@@ -6,6 +6,7 @@ from utils.visdomLogger import VisdomLogger
 import os
 from loss import loss_cross_entropy, early_loss_cross_entropy, early_loss_linear, loss_early_reward
 import numpy as np
+from utils.optim import ScheduledOptim
 
 CLASSIFICATION_PHASE_NAME="classification"
 EARLINESS_PHASE_NAME="earliness"
@@ -28,6 +29,7 @@ class Trainer():
                  show_n_samples=1,
                  loss_mode="twophase_linear_loss", # early_reward, twophase_early_reward, twophase_linear_loss, or twophase_early_simple
                  overwrite=True,
+                 warmup_steps=100,
                  resume_optimizer=False,
                  earliness_reward_power=1,
                  **kwargs):
@@ -47,7 +49,16 @@ class Trainer():
         self.show_n_samples = show_n_samples
         self.lossmode = loss_mode
         self.model = model
-        self.optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
+
+        if warmup_steps is not None:
+            self.optimizer = ScheduledOptim(
+                torch.optim.Adam(
+                    filter(lambda x: x.requires_grad, model.parameters()),
+                    betas=(0.9, 0.98), eps=1e-09),
+                self.model.d_model, warmup_steps)
+        else:
+            self.optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
+
         #self.optimizer = torch.optim.SGD(model.parameters(), lr=0.1, momentum=0.9)
         self.resume_optimizer = resume_optimizer
         self.earliness_reward_power = earliness_reward_power
@@ -259,7 +270,11 @@ class Trainer():
             loss, stats = self.loss_criterion(logprobabilities, pts, targets,
                                               self.earliness_factor, self.entropy_factor, self.ptsepsilon, self.earliness_reward_power)
             loss.backward()
-            self.optimizer.step()
+
+            if isinstance(self.optimizer, ScheduledOptim):
+                self.optimizer.step_and_update_lr()
+            else:
+                self.optimizer.step()
 
             prediction, t_stop = self.model.predict(logprobabilities, deltas)
 

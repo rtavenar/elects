@@ -7,6 +7,7 @@ from datasets.Synthetic_Dataset import SyntheticDataset
 import argparse
 from argparse import Namespace
 from utils.trainer import Trainer
+from utils.optim import ScheduledOptim
 import pandas as pd
 import os
 import numpy as np
