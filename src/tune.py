@@ -114,20 +114,19 @@ def get_hyperparameter_search_space(experiment, args):
         return dict(
             batchsize=args.batchsize,
             workers=2,
-            epochs=50, # will be overwritten by training_iteration criterion
-            switch_epoch=-1,
+            epochs=20,  # pure train epochs. then one validation...
+            switch_epoch=9999,
             earliness_factor=1,
-            loss_mode="twophase_cross_entropy",
-            fold=tune.grid_search([0]),
-            hidden_dims=tune.grid_search([25,50]),
-            learning_rate=tune.grid_search([1e-2]),
-            ptsepsilon=tune.grid_search([0]),
-            lossmode=tune.grid_search(["earliness_reward","twophase_cross_entropy"]),
-            num_layers=tune.grid_search([1]),
-            dataset=args.dataset,
-            drop_probability=0.5,
+            hidden_dims=tune.grid_search([50]),
+            num_layers=tune.grid_search([2]),
+            drop_probability=tune.grid_search([0.5]),
             shapelet_width_increment=tune.grid_search([10]),
-        )
+            ptsepsilon=0,
+            lossmode=tune.grid_search(["loss_cross_entropy"]),
+            learning_rate=None,
+            warmup_steps=100,
+            fold=tune.grid_search([0,1]),
+            dataset=args.dataset)
 
     else:
         raise ValueError("please insert valid experiment name for search space (either 'rnn' or 'conv1d')")
@@ -251,6 +250,11 @@ def print_best(top, filename):
     """
     time = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
     # num_hidden, learning_rate, num_rnn_layers = top.iloc[0].name
+
+    if len(top) == 0:
+        print("could not write best runs")
+        return
+
     best_run = top.iloc[0]
 
     param_fmt = "hidden_dims:{hidden_dims}, learning_rate:{learning_rate}, num_layers:{num_layers}"
