@@ -95,15 +95,17 @@ def get_hyperparameter_search_space(experiment, args):
         return dict(
             batchsize=args.batchsize,
             workers=2,
-            epochs=15,  # pure train epochs. then one validation...
-            switch_epoch=9999,
-            earliness_factor=1,
+            epochs=10,  # pure train epochs. then one validation...
+            switch_epoch=-1,
+            earliness_factor=tune.grid_search([0.6,0.7,0.7,0.8,0.9]),
             hidden_dims=tune.grid_search([50, 75, 100]),
-            num_layers=tune.grid_search([8,6,4,2]),
-            drop_probability=tune.grid_search([0.25, 0.5, 0.75]),
+            num_layers=tune.grid_search([8,6,4]),
+            drop_probability=tune.grid_search([0.5]),
             shapelet_width_increment=tune.grid_search([30, 50, 70]),
+            ptsepsilon=tune.grid_search([0,5,10]),
+            lossmode=tune.grid_search(["earliness_reward"]),
             learning_rate=tune.grid_search([1e-1, 1e-2]),
-            fold=tune.grid_search([0, 1, 2]),
+            fold=tune.grid_search([0]),
             dataset=args.dataset)
 
     elif experiment == "test_conv1d":
@@ -211,8 +213,8 @@ def tune_mori_datasets(args):
 
     # start ray server
     if not ray.is_initialized():
-        #ray.init(include_webui=False)
-        ray.init(redis_address="10.152.57.13:6379")
+        ray.init(include_webui=False)
+        #ray.init(redis_address="10.152.57.13:6379")
 
     for dataset in datasets:
         args.dataset = dataset
