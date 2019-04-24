@@ -51,12 +51,14 @@ class Trainer():
         self.model = model
 
         if warmup_steps is not None:
+            print("using scheduled optimizer with warmup steps "+str(warmup_steps))
             self.optimizer = ScheduledOptim(
                 torch.optim.Adam(
                     filter(lambda x: x.requires_grad, model.parameters()),
                     betas=(0.9, 0.98), eps=1e-09),
                 self.model.d_model, warmup_steps)
         else:
+            print("using adam optimizer with learning rate "+str(learning_rate))
             self.optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
 
         #self.optimizer = torch.optim.SGD(model.parameters(), lr=0.1, momentum=0.9)
@@ -137,7 +139,7 @@ class Trainer():
 
         else:
             raise ValueError("wrong loss_mode please choose either 'early_reward',  "
-                             "'twophase_early_reward', 'twophase_linear_loss', or 'twophase_cross_entropy'")
+                             "'loss_cross_entropy', 'twophase_early_reward', 'twophase_linear_loss', or 'twophase_cross_entropy'")
 
     def fit(self):
         printer = Printer()
@@ -273,12 +275,15 @@ class Trainer():
 
             if isinstance(self.optimizer, ScheduledOptim):
                 self.optimizer.step_and_update_lr()
+                lr = self.optimizer._optimizer.state_dict()["param_groups"][0]["lr"]
             else:
                 self.optimizer.step()
+                lr = self.optimizer.state_dict()["param_groups"][0]["lr"]
 
             prediction, t_stop = self.model.predict(logprobabilities, deltas)
 
             stats = metric.add(stats)
+            stats["lr"] = lr
 
             accuracy_metrics = metric.update_confmat(targets.mode(1)[0].detach().cpu().numpy(), prediction.detach().cpu().numpy())
             stats["accuracy"] = accuracy_metrics["overall_accuracy"]

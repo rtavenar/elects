@@ -6,6 +6,7 @@ import os
 from models.EarlyClassificationModel import EarlyClassificationModel
 from models.AttentionModule import Attention
 from torch.nn.modules.normalization import LayerNorm
+from models.ConvShapeletModel import ShapeletConvolution
 
 SEQUENCE_PADDINGS_VALUE=-1
 
@@ -22,6 +23,7 @@ class DualOutputRNN(EarlyClassificationModel):
         self.use_batchnorm = use_batchnorm
         self.use_attention = use_attention
         self.use_layernorm = use_layernorm
+        self.d_model = num_rnn_layers*hidden_dims
 
         if not use_batchnorm and not self.use_layernorm:
             self.in_linear = nn.Linear(input_dim, input_dim, bias=True)
@@ -31,7 +33,12 @@ class DualOutputRNN(EarlyClassificationModel):
             self.inlayernorm = nn.LayerNorm(input_dim)
             self.lstmlayernorm = nn.LayerNorm(hidden_dims)
 
-        self.lstm = nn.LSTM(input_size=input_dim, hidden_size=hidden_dims, num_layers=num_rnn_layers,
+        self.inpad = nn.ConstantPad1d((3, 0), 0)
+        self.inconv = nn.Conv1d(in_channels=input_dim,
+                  out_channels=hidden_dims,
+                  kernel_size=3)
+
+        self.lstm = nn.LSTM(input_size=hidden_dims, hidden_size=hidden_dims, num_layers=num_rnn_layers,
                             bias=False, batch_first=True, dropout=dropout, bidirectional=bidirectional)
 
         if bidirectional: # if bidirectional we have twice as many hidden dims after lstm encoding...
@@ -63,7 +70,8 @@ class DualOutputRNN(EarlyClassificationModel):
         # order x in decreasing seequence lengths
         #x = x[idxs]
 
-        # b,d,t -> b,t,d
+
+
         x = x.transpose(1,2)
 
         if not self.use_batchnorm and not self.use_layernorm:
@@ -71,6 +79,16 @@ class DualOutputRNN(EarlyClassificationModel):
 
         if self.use_layernorm:
             x = self.inlayernorm(x)
+
+        # b,d,t -> b,t,d
+        b, t, d = x.shape
+
+        # pad left
+        x_padded = self.inpad(x.transpose(1,2))
+        # conv
+        x = self.inconv(x_padded).transpose(1,2)
+        # cut left side of convolved length
+        x = x[:, -96:, :]
 
         #packed = torch.nn.utils.rnn.pack_padded_sequence(x.transpose(1,2), lengths, batch_first=True)
         outputs, last_state_list = self.lstm.forward(x)

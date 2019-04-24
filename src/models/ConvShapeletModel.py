@@ -24,109 +24,48 @@ class ConvShapeletModel(EarlyClassificationModel):
                  ):
 
         super(ConvShapeletModel, self).__init__()
-        self.X_fit_ = None
-        self.y_fit_ = None
-        self.use_time_as_feature = use_time_as_feature
-        self.d_model = hidden_dims
+        self.d_model = hidden_dims*num_layers
 
         self.seqlength = seqlength
         self.scaleshapeletsize = scaleshapeletsize
 
+        n_shapelets_per_size = build_n_shapelet_dict(num_layers, hidden_dims, shapelet_width_increment)
+        self.nfeatures = sum(n_shapelets_per_size.values())
+
+        self.shapelets = ShapeletBlocks(ts_dim, n_shapelets_per_size)
+
+        #self.shapelets2 = ShapeletBlocks(self.nfeatures, n_shapelets_per_size)
+
         # dropout
         self.dropout_module = nn.Dropout(drop_probability)
 
-        if use_time_as_feature:
-            ts_dim += 1 # time index as additional input
-
-        if n_shapelets_per_size is None:
-            n_shapelets_per_size = build_n_shapelet_dict(num_layers=num_layers,
-                                                         hidden_dims=hidden_dims,
-                                                         width_increments=shapelet_width_increment)
 
         # batchnormalization after convolution
-        self.batchnorm_module = nn.BatchNorm1d(sum(n_shapelets_per_size.values()))
+        #self.norm_module = nn.BatchNorm1d(self.nfeatures)
+        self.norm_module = nn.BatchNorm1d(self.nfeatures)
 
-        if load_from_disk is not None:
-            self.verbose = True
-            self.load(load_from_disk)
-        else:
-            self.n_shapelets_per_size = n_shapelets_per_size
-            self.ts_dim = ts_dim
-            self.n_classes = n_classes
+        self.logreg_layer = nn.Linear(self.nfeatures, n_classes)
+        self.decision_layer = nn.Linear(self.nfeatures, 1)
 
-            self._set_layers_and_optim()
-
-    def _set_layers_and_optim(self):
-        self.shapelet_sizes = sorted(self.n_shapelets_per_size.keys())
-        if self.scaleshapeletsize:
-            [int(size / 100 * self.seqlength) for size in self.shapelet_sizes]
-
-        self.shapelet_blocks = self._get_shapelet_blocks()
-        self.logreg_layer = nn.Linear(self.n_shapelets, self.n_classes)
-        self.decision_layer = nn.Linear(self.n_shapelets, 1)
         torch.nn.init.normal_(self.decision_layer.bias, mean=-1e1, std=1e-1)
 
-    def _get_shapelet_blocks(self):
-        return nn.ModuleList([
-            ShapeletConvolution(ts_dim=self.ts_dim,
-                                shapelet_size=shapelet_size,
-                                n_shapelets_per_size=self.n_shapelets_per_size[shapelet_size],
-                                )
-            #nn.ConstantPad1d((shapelet_size,0),0),
-            #nn.Conv1d(in_channels=self.ts_dim,
-            #          out_channels=self.n_shapelets_per_size[shapelet_size],
-            #          kernel_size=shapelet_size)
-                      #padding=shapelet_size) # <- padding of the full shapelet size to make sure that we not use samples from the "future" at pooling time t//2
-            for shapelet_size in self.shapelet_sizes
-        ])
+        self.n_shapelets_per_size = n_shapelets_per_size
+        self.ts_dim = ts_dim
+        self.n_classes = n_classes
 
-    def _temporal_pooling(self, x):
-        pool_size = x.size(-1)
-        pooled_x = nn.MaxPool1d(kernel_size=pool_size)(x)
-        return pooled_x.view(pooled_x.size(0), -1)
 
-    def _features(self, x):
-        sequencelength = x.shape[2]
-
-        features_maxpooled = []
-        for shp_sz, block in zip(self.shapelet_sizes, self.shapelet_blocks):
-            f = block(x)
-            f_maxpooled = list()
-            # sequencelength is not equal f.shape[2] -> f is based on padded input
-            # -> padding influences length -> we take :sequencelength to avoid using inputs from the future at time t
-            for t in range(1, sequencelength+1): # sequencelen
-                f_maxpooled.append(self._temporal_pooling(f[:,:,:t]))
-            f_maxpooled = torch.stack(f_maxpooled, dim=1)
-            features_maxpooled.append(f_maxpooled)
-        return torch.cat(features_maxpooled, dim=-1)
-
-    def _init_params(self):
-        if self.init_shapelets is not None:
-            self.set_shapelets(self.init_shapelets)
-        for m in self.modules():
-            if isinstance(m, nn.Conv1d):
-                if self.init_shapelets is None:
-                    nn.init.xavier_uniform_(m.weight)
-                nn.init.uniform_(m.bias, -1, 1)
-            elif isinstance(m, nn.Linear):
-                nn.init.xavier_uniform_(m.weight)
-                nn.init.uniform_(m.bias, -1, 1)
 
     @property
     def n_shapelets(self):
         return sum(self.n_shapelets_per_size.values())
 
-    def _batchnorm(self, x):
-        x = x.transpose(2, 1)
-        x = self.batchnorm_module(x)
-        return x.transpose(2, 1)
-
     def _logits(self, x):
-        if self.use_time_as_feature:
-            x = add_time_feature_to_input(x)
 
-        shapelet_features = self._features(x)
-        shapelet_features = self._batchnorm(shapelet_features)
+        #shapelet_features = self._features(x)
+        shapelet_features = self.shapelets.forward(x)
+        #shapelet_features = self.shapelets2.forward(shapelet_features.transpose(1,2))
+
+        shapelet_features = self.norm_module(shapelet_features.transpose(2, 1)).transpose(2, 1)
         shapelet_features = self.dropout_module(shapelet_features)
 
         logits = self.logreg_layer(shapelet_features)
@@ -139,18 +78,6 @@ class ConvShapeletModel(EarlyClassificationModel):
         logits, deltas, pts, budget = self._logits(x)
         logprobabilities = F.log_softmax(logits, dim=2)
         return logprobabilities, deltas, pts, budget
-
-    def get_shapelets(self):
-        shapelets = []
-        for block in self.shapelet_blocks:
-            weights = block.weight.data.numpy()
-            shapelets.append(numpy.transpose(weights, (0, 2, 1)))
-        return shapelets
-
-    def set_shapelets(self, l_shapelets):
-
-        for shp, block in zip(l_shapelets, self.shapelet_blocks):
-            block.weight.data = shp.view(block.weight.shape)
 
     def save(self, path="model.pth",**kwargs):
         print("Saving model to " + path)
@@ -186,26 +113,6 @@ class ConvShapeletModel(EarlyClassificationModel):
 
         return snapshot
 
-def add_time_feature_to_input(x):
-    """
-    adds an additional time feature as additional input dimension.
-    the time feature increases with sequence length from zero to one
-
-    :param x: input tensor of dimensions (batchsize, ts_dim, ts_len)
-    :return: expanded output tensor of dimensions (batchsize, ts_dim+1, ts_len)
-    """
-
-    batchsize, ts_dim, ts_len = x.shape
-    # create range
-    time_feature = torch.arange(0., float(ts_len)) / ts_len
-    # repeat for each batch element
-    time_feature = time_feature.repeat(batchsize, 1, 1)
-    # move to GPU if available
-    if torch.cuda.is_available():
-        time_feature = time_feature.cuda()
-    # append time_feature to x
-    return torch.cat([x, time_feature], dim=1)
-
 def build_n_shapelet_dict(num_layers, hidden_dims, width_increments=10):
     """
     Builds a dictionary of format {<kernel_length_in_percentage_of_T>:<num_hidden_dimensions> , ...}
@@ -218,16 +125,62 @@ def build_n_shapelet_dict(num_layers, hidden_dims, width_increments=10):
         n_shapelets_per_size[shapelet_width] = hidden_dims
     return n_shapelets_per_size
 
+class ShapeletBlocks(nn.Module):
+
+    def __init__(self, input_dim, n_shapelets_per_size):
+        super(ShapeletBlocks, self).__init__()
+
+        self.n_shapelets_per_size = n_shapelets_per_size
+
+        blocks = list()
+        for shapelet_size, n_shapelets_per_size in self.n_shapelets_per_size.items():
+            conv = ShapeletConvolution(in_channels=input_dim,shapelet_size=shapelet_size, n_shapelets_per_size=n_shapelets_per_size)
+            blocks.append(conv)
+
+        self.shapelet_blocks = nn.ModuleList(blocks)
+
+    def _temporal_pooling(self, x):
+        pool_size = x.size(-1)
+        pooled_x = nn.MaxPool1d(kernel_size=pool_size)(x)
+        return pooled_x.view(pooled_x.size(0), -1)
+
+    def get_shapelets(self):
+        shapelets = []
+        for block in self.shapelet_blocks:
+            weights = block.weight.data.numpy()
+            shapelets.append(numpy.transpose(weights, (0, 2, 1)))
+        return shapelets
+
+    def set_shapelets(self, l_shapelets):
+
+        for shp, block in zip(l_shapelets, self.shapelet_blocks):
+            block.weight.data = shp.view(block.weight.shape)
+
+    def forward(self, x):
+        sequencelength = x.shape[2]
+
+        features_maxpooled = []
+        for shp_sz, block in zip(self.n_shapelets_per_size.keys(), self.shapelet_blocks):
+            f = block.forward(x)
+            f_maxpooled = list()
+            # sequencelength is not equal f.shape[2] -> f is based on padded input
+            # -> padding influences length -> we take :sequencelength to avoid using inputs from the future at time t
+            for t in range(1, sequencelength + 1):  # sequencelen
+                f_maxpooled.append(self._temporal_pooling(f[:, :, :t]))
+            f_maxpooled = torch.stack(f_maxpooled, dim=1)
+            features_maxpooled.append(f_maxpooled)
+        return torch.cat(features_maxpooled, dim=-1)
+
 class ShapeletConvolution(nn.Module):
     """
     performs left side padding on the input and a convolution
     """
-    def __init__(self, shapelet_size, ts_dim, n_shapelets_per_size):
+    def __init__(self, shapelet_size, in_channels, n_shapelets_per_size):
         super(ShapeletConvolution, self).__init__()
 
         # pure left padding to align classification time t with right edge of convolutional kernel
         self.pad = nn.ConstantPad1d((shapelet_size, 0), 0)
-        self.conv = nn.Conv1d(in_channels=ts_dim,
+        self.conv = nn.Conv1d(in_channels=in_channels,
                   out_channels=n_shapelets_per_size,
                   kernel_size=shapelet_size)
 

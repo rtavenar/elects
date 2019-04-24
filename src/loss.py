@@ -128,16 +128,16 @@ def loss_early_reward(logprobabilities,pts, targets, alpha=1, ptsepsilon = 10, p
 
     if ptsepsilon is not None:
         ptsepsilon = ptsepsilon / seqquencelength
-        pts += ptsepsilon
+        #pts += ptsepsilon
 
     b,t,c = logprobabilities.shape
     #loss_classification = F.nll_loss(logprobabilities.view(b*t,c), targets.view(b*t))
     xentropy = F.nll_loss(logprobabilities.transpose(1, 2).unsqueeze(-1), targets.unsqueeze(-1),
                           reduction='none').squeeze(-1)
-    loss_classification = alpha * (pts * xentropy).sum(1).mean()
+    loss_classification = alpha * (((pts+ptsepsilon) * xentropy)).sum(1).mean()
 
     yyhat = build_yhaty(logprobabilities, targets)
-    earliness_reward = (1-alpha) * (pts * yyhat**power * (1 - (t_index / seqquencelength))).sum(1).mean()
+    earliness_reward = (1-alpha) * ((pts) * (yyhat)**power * (1 - (t_index / seqquencelength))).sum(1).mean()
 
     loss = loss_classification - earliness_reward
 

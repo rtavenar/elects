@@ -84,6 +84,8 @@ def parse_args():
     parser.add_argument(
         '--test_every_n_epochs', type=int, default=1, help='skip some test epochs for faster overall training')
     parser.add_argument(
+        '--warmup-steps', type=int, default=None, help='warmupsteps for scheduled optimizer (if provided uses scheduled optimizer. otherwise regular adam)')
+    parser.add_argument(
         '--earliness_reward_power', type=int, default=1, help='power of the y+ at the earliness term...')
     parser.add_argument(
         '--seed', type=int, default=None, help='seed for batching and weight initialization')
@@ -218,6 +220,7 @@ def train(args):
         test_every_n_epochs=args.test_every_n_epochs,
         entropy_factor = args.entropy_factor,
         resume_optimizer = args.resume_optimizer,
+        warmup_steps = args.warmup_steps,
         earliness_reward_power=args.earliness_reward_power
     )
 
@@ -290,7 +293,7 @@ def getModel(args):
                                   hidden_dims=args.hidden_dims,
                                   ts_dim=args.input_dims,
                                   n_classes=args.nclasses,
-                                  use_time_as_feature=True,
+                                  use_time_as_feature=False,
                                   seqlength=args.seqlength,
                                   scaleshapeletsize=args.shapelet_width_in_percent,
                                   drop_probability=args.dropout,
