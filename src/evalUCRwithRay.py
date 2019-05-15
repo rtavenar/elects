@@ -57,7 +57,7 @@ def run_experiment(args):
                 epochs=100, # will be overwritten by training_iteration criterion
                 switch_epoch=-1,
                 earliness_factor=tune.grid_search([0.25, 0.5, 0.75]),
-                ptsepsilon=tune.grid_search([0, 5, 10]),
+                ptsepsilon=tune.grid_search([10, 5, 0]),
                 hyperparametercsv=args.hyperparametercsv,
                 warmup_steps=tune.grid_search([5, 10, 20]),
                 dataset=tune.grid_search(datasets),
@@ -175,7 +175,7 @@ def run_experiment_on_datasets(args):
     # start ray server
     #ray.init(redis_address="10.152.57.13:6379")
     if not ray.is_initialized():
-        ray.init(include_webui=False, configure_logging=True, logging_level=logging.DEBUG)
+        ray.init(include_webui=False, configure_logging=True, logging_level=logging.INFO)
 
     try:
         run_experiment(args)
