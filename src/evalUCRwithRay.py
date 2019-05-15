@@ -46,6 +46,19 @@ def run_experiment(args):
     #experiment_name = args.dataset
     datasets = get_datasets_from_hyperparametercsv(args.hyperparametercsv)
 
+    if args.experiment == "early_reward":
+        config = dict(
+                batchsize=args.batchsize,
+                workers=2,
+                epochs=60, # will be overwritten by training_iteration criterion
+                switch_epoch=-1,
+                earliness_factor=tune.grid_search([0.25, 0.5, 0.75]),
+                ptsepsilon=tune.grid_search([0, 5, 10]),
+                hyperparametercsv=args.hyperparametercsv,
+                dataset=tune.grid_search(datasets),
+                drop_probability=tune.grid_search([0.25, 0.5, 0.75]),
+                lossmode="early_reward" # tune.grid_search(["twophase_linear_loss","twophase_cross_entropy"]),
+            )
     if args.experiment == "sota_comparison":
         config = dict(
                 batchsize=args.batchsize,
@@ -102,7 +115,7 @@ def run_experiment(args):
                     'time_total_s':600 if not args.smoke_test else 1,
                 },
                 "run": RayTrainer,
-                "num_samples": 3,
+                "num_samples": 1,
                 "checkpoint_at_end": False,
                 "config": config,
                 "local_dir":args.local_dir
