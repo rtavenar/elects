@@ -83,8 +83,8 @@ class ConvShapeletModel(EarlyClassificationModel):
         print("Saving model to " + path)
         params = self.get_params()
         params["model_state"] = self.state_dict()
-        params["X_fit_"] = self.X_fit_
-        params["y_fit_"] = self.y_fit_
+        #params["X_fit_"] = self.X_fit_
+        #params["y_fit_"] = self.y_fit_
         # merge kwargs in params
         data = dict(
             params=params,
@@ -99,8 +99,8 @@ class ConvShapeletModel(EarlyClassificationModel):
         snapshot = data["params"]
         config = data["config"]
         model_state = snapshot.pop('model_state', snapshot)
-        self.X_fit_ = snapshot.pop('X_fit_', snapshot)
-        self.y_fit_ = snapshot.pop('y_fit_', snapshot)
+        #self.X_fit_ = snapshot.pop('X_fit_', snapshot)
+        #self.y_fit_ = snapshot.pop('y_fit_', snapshot)
         self.set_params(**snapshot)  # For hyper-parameters
 
         self._set_layers_and_optim()

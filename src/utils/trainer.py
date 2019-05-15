@@ -7,6 +7,7 @@ import os
 from loss import loss_cross_entropy, early_loss_cross_entropy, early_loss_linear, loss_early_reward
 import numpy as np
 from utils.optim import ScheduledOptim
+import logging
 
 CLASSIFICATION_PHASE_NAME="classification"
 EARLINESS_PHASE_NAME="earliness"
@@ -50,15 +51,16 @@ class Trainer():
         self.lossmode = loss_mode
         self.model = model
 
+
         if warmup_steps is not None:
-            print("using scheduled optimizer with warmup steps "+str(warmup_steps))
+            logging.info("using scheduled optimizer with warmup steps "+str(warmup_steps))
             self.optimizer = ScheduledOptim(
                 torch.optim.Adam(
                     filter(lambda x: x.requires_grad, model.parameters()),
                     betas=(0.9, 0.98), eps=1e-09),
                 self.model.d_model, warmup_steps)
         else:
-            print("using adam optimizer with learning rate "+str(learning_rate))
+            logging.info("using adam optimizer with learning rate "+str(learning_rate))
             self.optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
 
         #self.optimizer = torch.optim.SGD(model.parameters(), lr=0.1, momentum=0.9)
@@ -82,6 +84,18 @@ class Trainer():
             self.resume(self.get_classification_model_name())
             self.resumed_run = True
 
+        logging.debug(self.model)
+        logging.debug(self.optimizer._optimizer)
+        logging.debug("traindataloader")
+        logging.debug(traindataloader.sampler)
+
+        import sys
+        logging.debug(sys.getsizeof(traindataloader))
+
+        logging.debug("validdataloader")
+        logging.debug(validdataloader.sampler)
+        logging.debug(sys.getsizeof(validdataloader))
+
     def resume(self, filename):
         snapshot = self.model.load(filename)
         if torch.cuda.is_available():
@@ -101,6 +115,8 @@ class Trainer():
 
     def loss_criterion(self, logprobabilties, pts, targets, earliness_factor, entropy_factor, ptsepsilon, earliness_reward_power):
         """a wrapper around several possible loss functions for experiments"""
+
+        logging.debug(self.lossmode, earliness_factor, entropy_factor, ptsepsilon, earliness_reward_power)
 
         ## try to optimize for earliness only when classification is correct
         if self.lossmode=="early_reward":
@@ -167,11 +183,14 @@ class Trainer():
         if self.save_logger:
             self.logger.save()
 
+
+
         return self.logger.data
 
     def new_epoch(self):
         self.check_events()
         self.epoch += 1
+        #self.optimizer.update_lr()
 
     def visdom_log_test_run(self, stats):
 

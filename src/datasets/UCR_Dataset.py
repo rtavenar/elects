@@ -100,6 +100,18 @@ class UCRDataset(torch.utils.data.Dataset):
         # add 1d hight and width dimensions and copy y for each time
         return X, y.expand(X.shape[0])
 
+    def __str__(self):
+
+        str="""
+UCR Dataset = {dataset}
+X.shape = {Xshape}
+y.shape = {yshape}
+nclasses = {nclasses}
+ndims = {ndims}
+        """.format(dataset=self.name, Xshape=self.X.shape, yshape=self.y.shape, nclasses=self.nclasses, ndims=self.ndims)
+
+        return str
+
 if __name__ == "__main__":
 
     for name in list_UCR_datasets():

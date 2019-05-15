@@ -206,6 +206,8 @@ def train(args):
     # np.array([np.array(p.shape).prod() for p in model.parameters()]).sum()
     visdomenv = "{}_{}_{}".format(args.experiment, args.dataset, args.loss_mode.replace("_","-"))
 
+    print("Visdom Environment: {}".format(visdomenv))
+
     config = dict(
         epochs=args.epochs,
         learning_rate=args.learning_rate,
@@ -252,7 +254,8 @@ def getDataloader(dataset, partition, train_valid_split_ratio=0.75,seed=None, **
 
     if kwargs["shuffle"]:
         #sampler = WeightedRandomSampler(torchdataset.dataweights, len(torchdataset.dataweights),  replacement=True)
-        sampler = ImbalancedDatasetSampler(torchdataset)
+        #sampler = ImbalancedDatasetSampler(torchdataset)
+        sampler = RandomSampler(torchdataset)
     else:
         sampler = SequentialSampler(torchdataset)
     # for training dataset -> shuffle is true

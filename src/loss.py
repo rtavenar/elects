@@ -126,15 +126,19 @@ def loss_early_reward(logprobabilities,pts, targets, alpha=1, ptsepsilon = 10, p
     batchsize, seqquencelength, nclasses = logprobabilities.shape
     t_index = build_t_index(batchsize=batchsize, sequencelength=seqquencelength)
 
+    #pts_ = torch.nn.functional.softmax((pts + ptsepsilon), dim=1)
     if ptsepsilon is not None:
         ptsepsilon = ptsepsilon / seqquencelength
         #pts += ptsepsilon
+
+    #pts_ = torch.nn.functional.softmax((pts + ptsepsilon), dim=1)
+    pts_ = (pts + ptsepsilon)
 
     b,t,c = logprobabilities.shape
     #loss_classification = F.nll_loss(logprobabilities.view(b*t,c), targets.view(b*t))
     xentropy = F.nll_loss(logprobabilities.transpose(1, 2).unsqueeze(-1), targets.unsqueeze(-1),
                           reduction='none').squeeze(-1)
-    loss_classification = alpha * (((pts+ptsepsilon) * xentropy)).sum(1).mean()
+    loss_classification = alpha * ((pts_ * xentropy)).sum(1).mean()
 
     yyhat = build_yhaty(logprobabilities, targets)
     earliness_reward = (1-alpha) * ((pts) * (yyhat)**power * (1 - (t_index / seqquencelength))).sum(1).mean()

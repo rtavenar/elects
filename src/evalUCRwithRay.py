@@ -7,9 +7,15 @@ from datasets.UCR_Dataset import UCRDataset
 from models.ConvShapeletModel import ConvShapeletModel
 import torch
 from utils.trainer import Trainer
-from train import get_datasets_from_hyperparametercsv
+from train import get_datasets_from_hyperparametercsv, getModel, getDataloader, readHyperparameterCSV
 import pandas as pd
 import logging
+
+logging.basicConfig(level=logging.INFO)
+
+from argparse import Namespace
+
+
 
 def main():
     # parse input arguments
@@ -35,8 +41,6 @@ def parse_args():
         help='ray local dir. defaults to $HOME/ray_results')
     parser.add_argument(
         '--smoke-test', action='store_true', help='Finish quickly for testing')
-    parser.add_argument(
-        '--skip-processed', action='store_true', help='skip already processed datasets (defined by presence of results folder)')
     args, _ = parser.parse_known_args()
     return args
 
@@ -50,15 +54,32 @@ def run_experiment(args):
         config = dict(
                 batchsize=args.batchsize,
                 workers=2,
-                epochs=60, # will be overwritten by training_iteration criterion
+                epochs=1, # will be overwritten by training_iteration criterion
                 switch_epoch=-1,
                 earliness_factor=tune.grid_search([0.25, 0.5, 0.75]),
                 ptsepsilon=tune.grid_search([0, 5, 10]),
                 hyperparametercsv=args.hyperparametercsv,
+                warmup_steps=tune.grid_search([5, 10, 20]),
                 dataset=tune.grid_search(datasets),
                 drop_probability=tune.grid_search([0.25, 0.5, 0.75]),
-                lossmode="early_reward" # tune.grid_search(["twophase_linear_loss","twophase_cross_entropy"]),
+                loss_mode="early_reward" # tune.grid_search(["twophase_linear_loss","twophase_cross_entropy"]),
             )
+
+    if args.experiment == "test":
+        config = dict(
+                batchsize=args.batchsize,
+                workers=2,
+                epochs=1, # will be overwritten by training_iteration criterion
+                switch_epoch=-1,
+                earliness_factor=tune.grid_search([0.5]),
+                ptsepsilon=tune.grid_search([5]),
+                hyperparametercsv=args.hyperparametercsv,
+                warmup_steps=20,
+                dataset="ECG200",
+                drop_probability=tune.grid_search([0.8]),
+                loss_mode="early_reward" # tune.grid_search(["twophase_linear_loss","twophase_cross_entropy"]),
+            )
+
     if args.experiment == "sota_comparison":
         config = dict(
                 batchsize=args.batchsize,
@@ -71,7 +92,7 @@ def run_experiment(args):
                 hyperparametercsv=args.hyperparametercsv,
                 dataset=tune.grid_search(datasets),
                 drop_probability=0.5,
-                lossmode=tune.grid_search(["twophase_linear_loss","twophase_cross_entropy"]),
+                loss_mode=tune.grid_search(["twophase_linear_loss","twophase_cross_entropy"]),
             )
     if args.experiment == "entropy_pts":
         config = dict(
@@ -85,7 +106,7 @@ def run_experiment(args):
                 hyperparametercsv=args.hyperparametercsv,
                 dataset=tune.grid_search(datasets),
                 drop_probability=0.5,
-                lossmode="twophase_linear_loss",
+                loss_mode="twophase_linear_loss",
             )
 
     if args.experiment == "phase1only":
@@ -100,13 +121,13 @@ def run_experiment(args):
                 hyperparametercsv=args.hyperparametercsv,
                 dataset=tune.grid_search(datasets),
                 drop_probability=tune.grid_search([0.2, 0.5, 0.75]),
-                lossmode="twophase_linear_loss",
+                loss_mode="twophase_linear_loss",
             )
 
     tune.run_experiments(
         {
             args.experiment: {
-                "trial_resources": {
+                "resources_per_trial": {
                     "cpu": args.cpu,
                     "gpu": args.gpu,
                 },
@@ -136,15 +157,9 @@ def run_experiment_on_datasets(args):
     if not os.path.exists(resultsdir):
         os.makedirs(resultsdir)
 
-    if args.skip_processed:
-        processed_datasets = [f for f in os.listdir(resultsdir) if os.path.isdir(os.path.join(resultsdir,f))]
-        print("--skip-processed option enabled. Found {}/{} datasets present. skipping these...".format(len(datasets),len(processed_datasets)))
-        # remove all datasets that are present in the folder already
-        datasets = list(set(datasets).symmetric_difference(processed_datasets))
-
     # start ray server
     if not ray.is_initialized():
-        ray.init(include_webui=False, configure_logging=True, logging_level=logging.INFO)
+        ray.init(include_webui=False, configure_logging=True, logging_level=logging.DEBUG)
 
     try:
         run_experiment(args)
@@ -159,56 +174,103 @@ class RayTrainer(ray.tune.Trainable):
         self.dataset = config["dataset"]
         self.earliness_factor = config["earliness_factor"]
 
-        hparams = pd.read_csv(config["hyperparametercsv"]).set_index("dataset").loc[self.dataset]
+        hparams = pd.read_csv(config["hyperparametercsv"])
+
+        # select only current dataset
+        hparams = hparams.set_index("dataset").loc[config["dataset"]]
 
         config["learning_rate"] = float(hparams.learning_rate)
         config["num_layers"] = int(hparams.num_layers)
         config["hidden_dims"] = int(hparams.hidden_dims)
         config["shapelet_width_increment"] = int(hparams.shapelet_width_increment)
 
-        traindataset = UCRDataset(config["dataset"],
-                                  partition="trainvalid",
-                                  silent=True,
-                                  augment_data_noise=0)
-
-        validdataset = UCRDataset(config["dataset"],
-                                  partition="test",
-                                  silent=True)
+        logging.debug(hparams)
+        logging.debug(config["batchsize"])
 
         self.epochs = config["epochs"]
 
-        nclasses = traindataset.nclasses
+
 
         # handles multitxhreaded batching andconfig shuffling
-        self.traindataloader = torch.utils.data.DataLoader(traindataset, batch_size=config["batchsize"], shuffle=True,
-                                                           num_workers=config["workers"],
-                                                           pin_memory=False)
-        self.validdataloader = torch.utils.data.DataLoader(validdataset, batch_size=config["batchsize"], shuffle=False,
-                                                      num_workers=config["workers"], pin_memory=False)
+        #self.traindataloader = torch.utils.data.DataLoader(traindataset, batch_size=config["batchsize"], shuffle=True,
+        #                                                   num_workers=config["workers"],
+        #                                                   pin_memory=False)
+        #self.validdataloader = torch.utils.data.DataLoader(validdataset, batch_size=config["batchsize"], shuffle=False,
+        #
+        #                                              num_workers=config["workers"], pin_memory=False)
 
-        self.model = ConvShapeletModel(num_layers=config["num_layers"],
-                                       hidden_dims=config["hidden_dims"],
-                                       ts_dim=1,
-                                       n_classes=nclasses,
-                                       use_time_as_feature=True,
-                                       drop_probability=config["drop_probability"],
-                                       scaleshapeletsize=False,
-                                       shapelet_width_increment=config["shapelet_width_increment"])
+        # dict to namespace
+        args = Namespace(**config)
+
+        args.model = "Conv1D"
+        args.shapelet_width_in_percent = False
+        args.dropout = args.drop_probability
+
+        self.traindataloader = getDataloader(dataset=args.dataset,
+                                        partition="trainvalid",
+                                        batch_size=config["batchsize"],
+                                        num_workers=config["workers"],
+                                        shuffle=True,
+                                        pin_memory=True)
+
+
+        self.validdataloader = getDataloader(dataset=args.dataset,
+                                        partition="test",
+                                        batch_size=config["batchsize"],
+                                        num_workers=config["workers"],
+                                        shuffle=False,
+                                        pin_memory=True)
+
+
+        args.nclasses = self.traindataloader.dataset.nclasses
+        args.seqlength = self.traindataloader.dataset.sequencelength
+        args.input_dims = self.traindataloader.dataset.ndims
+
+
+        self.model = getModel(args)
+        #self.model = ConvShapeletModel(num_layers=config["num_layers"],
+        #                               hidden_dims=config["hidden_dims"],
+        #                               ts_dim=1,
+        #                               n_classes=nclasses,
+        #                               use_time_as_feature=True,
+        #                               drop_probability=config["drop_probability"],
+        #                               scaleshapeletsize=False,
+        #                               shapelet_width_increment=config["shapelet_width_increment"])
 
         if torch.cuda.is_available():
             self.model = self.model.cuda()
 
+        # namespace to dict
+        config = vars(args)
+        config.pop("model") # delete string Conv1D to avoid confusion with model class
+
+        self.config = config
+
         self.trainer = Trainer(self.model, self.traindataloader, self.validdataloader, **config)
 
+
     def _train(self):
-        # epoch is used to distinguish training phases. epoch=None will default to (first) cross entropy phase
 
-        # train epochs and then infer once. to avoid overhead on these small datasets
         for epoch in range(self.epochs):
-            self.trainer.epoch = epoch
-            self.trainer.train_epoch(epoch=None)
+            self.trainer.new_epoch() # important for updating the learning rate
+            stats = self.trainer.train_epoch(epoch)
 
-        return self.trainer.test_epoch(epoch=None)
+
+        stats = self.trainer.test_epoch(dataloader=self.validdataloader)
+
+        self.log(stats)
+
+        return stats
+
+    def log(self, stats):
+
+        msg = "dataset {}, accuracy {:0.2f}, earliness {:0.2f}, mean_precision {:0.2f}, mean_recall {:0.2f}, kappa {:0.2f}, loss {:0.2f}"
+
+        #print(self.dataset)
+        #print(self.config)
+        print(msg.format(self.dataset, stats["accuracy"], stats["earliness"], stats["mean_precision"], stats["mean_recall"],
+                         stats["kappa"], stats["loss"]))
+
 
     def _save(self, path):
         path = path + ".pth"

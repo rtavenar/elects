@@ -12,8 +12,14 @@ class ScheduledOptim():
 
     def step_and_update_lr(self):
         "Step with the inner optimizer"
-        self._update_learning_rate()
+        self.step()
+        self.update_lr()
+
+    def step(self):
         self._optimizer.step()
+
+    def update_lr(self):
+        self._update_learning_rate()
 
     def zero_grad(self):
         "Zero out the gradients by the inner optimizer"
