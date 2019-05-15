@@ -54,7 +54,7 @@ def run_experiment(args):
         config = dict(
                 batchsize=args.batchsize,
                 workers=2,
-                epochs=1, # will be overwritten by training_iteration criterion
+                epochs=100, # will be overwritten by training_iteration criterion
                 switch_epoch=-1,
                 earliness_factor=tune.grid_search([0.25, 0.5, 0.75]),
                 ptsepsilon=tune.grid_search([0, 5, 10]),
@@ -63,6 +63,21 @@ def run_experiment(args):
                 dataset=tune.grid_search(datasets),
                 drop_probability=tune.grid_search([0.25, 0.5, 0.75]),
                 loss_mode="early_reward" # tune.grid_search(["twophase_linear_loss","twophase_cross_entropy"]),
+            )
+
+    if args.experiment == "twophase_cross_entropy":
+        config = dict(
+                batchsize=args.batchsize,
+                workers=2,
+                epochs=100, # will be overwritten by training_iteration criterion
+                switch_epoch=50,
+                earliness_factor=tune.grid_search([0.25, 0.5, 0.75]),
+                ptsepsilon=tune.grid_search([0, 5, 10]),
+                hyperparametercsv=args.hyperparametercsv,
+                warmup_steps=tune.grid_search([5, 10, 20]),
+                dataset=tune.grid_search(datasets),
+                drop_probability=tune.grid_search([0.25, 0.5, 0.75]),
+                loss_mode="twophase_cross_entropy" # tune.grid_search(["twophase_linear_loss","twophase_cross_entropy"]),
             )
 
     if args.experiment == "test":
@@ -151,13 +166,14 @@ def run_experiment_on_datasets(args):
     :param args: argparse arguments forwarded further
     """
     datasets = get_datasets_from_hyperparametercsv(args.hyperparametercsv)
-    resultsdir = os.path.join(args.local_dir, "sota_comparison")
+    resultsdir = os.path.join(args.local_dir)
     args.local_dir = resultsdir
 
     if not os.path.exists(resultsdir):
         os.makedirs(resultsdir)
 
     # start ray server
+    #ray.init(redis_address="10.152.57.13:6379")
     if not ray.is_initialized():
         ray.init(include_webui=False, configure_logging=True, logging_level=logging.DEBUG)
 
