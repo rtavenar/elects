@@ -82,6 +82,14 @@ class RayResultsParser():
             subset=['earliness_factor', 'entropy_factor', 'ptsepsilon'], keep='first')
         data[columns].to_csv(outpath)
 
+    def get_early_reward_experiment(self, path, outpath=None, columns=["accuracy", "earliness"]):
+        data = self._load_all_runs(path)
+        print("{} runs returned!".format(len(data)))
+        data = pd.DataFrame(data).set_index(["dataset"])
+        data.sort_values(by="accuracy", ascending=False).drop_duplicates(
+            subset=['earliness_factor', 'ptsepsilon', 'warmup_steps','drop_probability'], keep='first')
+        data[columns].to_csv(outpath)
+
     def get_best_hyperparameters(self, path, hyperparametercsv=None, group_by=["hidden_dims", "learning_rate", "num_rnn_layers"]):
 
         experiments = os.listdir(path)
@@ -128,6 +136,15 @@ def parse_sota_experiment(path, outcsv):
     parser.get_sota_experiment(path,
                                outpath=outcsv,columns=["earliness_factor","entropy_factor","ptsepsilon","accuracy","earliness","lossmode"])
 
+def parse_early_reward_experiment(path, outcsv):
+    parser = RayResultsParser()
+
+    os.makedirs(os.path.dirname(outcsv), exist_ok=True)
+    print("writing to "+outcsv)
+    parser.get_early_reward_experiment(path,
+                               outpath=outcsv,columns=['earliness_factor', 'ptsepsilon', 'warmup_steps','drop_probability',"accuracy","earliness"])
+
+
 def parse_entropy_experiment():
 
     parser = RayResultsParser()
@@ -146,5 +163,8 @@ if __name__=="__main__":
     #                      hyperparametercsv="/data/remote/hyperparametertuning_conv1d/hyperparams.csv")
 
     # results from runs using hyperparameters trained on train+valid partitions and tested on test partition
-    parse_sota_experiment(path="/data/remote/early_rnn/sota_comparison",
-                          outcsv="../viz/data/sota_comparison/runs.csv")
+    #parse_sota_experiment(path="/data/remote/early_rnn/sota_comparison",
+    #                      outcsv="../viz/data/sota_comparison/runs.csv")
+
+    parse_early_reward_experiment(path="/data/remote/early_rnn/early_reward",
+                          outcsv="../viz/data/sota_comparison/early_reward.csv")
