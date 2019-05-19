@@ -1,0 +1,12 @@
+numpy
+psutil
+torch
+pandas
+ray==0.6.5
+seaborn
+cython
+matplotlib
+requests
+visdom
+librosa
+torchvision
