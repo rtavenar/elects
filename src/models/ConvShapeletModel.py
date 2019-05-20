@@ -74,8 +74,11 @@ class ConvShapeletModel(EarlyClassificationModel):
         pts, budget = self.attentionbudget(deltas)
         return logits, deltas, pts, budget
 
-    def forward(self, x):
+    def forward(self, x, logits_scaling_factor=1):
         logits, deltas, pts, budget = self._logits(x)
+
+        logits = logits * logits_scaling_factor
+
         logprobabilities = F.log_softmax(logits, dim=2)
         return logprobabilities, deltas, pts, budget
 
