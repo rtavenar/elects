@@ -88,7 +88,7 @@ class DualOutputRNN(EarlyClassificationModel):
         # conv
         x = self.inconv(x_padded).transpose(1,2)
         # cut left side of convolved length
-        x = x[:, -96:, :]
+        x = x[:, -t:, :]
 
         #packed = torch.nn.utils.rnn.pack_padded_sequence(x.transpose(1,2), lengths, batch_first=True)
         outputs, last_state_list = self.lstm.forward(x)

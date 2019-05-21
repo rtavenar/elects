@@ -40,7 +40,7 @@ class BavarianCropsDataset(torch.utils.data.Dataset):
         self.classes = self.mapping["id"].unique()
         self.nclasses = len(self.classes)
 
-        self.cache = os.path.join(self.root,"npy",region, partition)
+        self.cache = os.path.join("/tmp","npy",region, partition)
 
         print("read {} classes".format(self.nclasses))
 
@@ -140,13 +140,15 @@ class BavarianCropsDataset(torch.utils.data.Dataset):
 
     def load_cached_dataset(self):
         # load
-        self.classweights = np.load(os.path.join(self.cache, "classweights.npy"))
-        self.y = np.load(os.path.join(self.cache, "y.npy"))
-        self.ndims = int(np.load(os.path.join(self.cache, "ndims.npy")))
-        self.sequencelengths = np.load(os.path.join(self.cache, "sequencelengths.npy"))
-        self.ids = np.load(os.path.join(self.cache, "ids.npy"))
+        self.classweights = np.load(os.path.join(self.cache, "classweights.npy"), allow_pickle=True)
+        self.y = np.load(os.path.join(self.cache, "y.npy"), allow_pickle=True)
+        self.ndims = int(np.load(os.path.join(self.cache, "ndims.npy"), allow_pickle=True))
+        self.sequencelengths = np.load(os.path.join(self.cache, "sequencelengths.npy"), allow_pickle=True)
+        self.sequencelength = self.sequencelengths.max()
+
+        self.ids = np.load(os.path.join(self.cache, "ids.npy"), allow_pickle=True)
         #self.dataweights = np.load(os.path.join(self.cache, "dataweights.npy"))
-        self.X = np.load(os.path.join(self.cache, "X.npy"))
+        self.X = np.load(os.path.join(self.cache, "X.npy"), allow_pickle=True)
 
     def cache_exists(self):
         #weightsexist = os.path.exists(os.path.join(self.cache, "classweights.npy"))

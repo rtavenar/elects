@@ -36,7 +36,7 @@ def choose_params(alpha):
 
     return relclass_col, ects_col, edsc_col
 
-def load_approaches(alpha=0.6,relclass_col="t=0.001",edsc_col="t=2.5",ects_col="sup=0.05", csvfile = "data/sota_comparison/runs.csv"):
+def load_approaches(alpha=0.6,relclass_col="t=0.001",edsc_col="t=2.5",ects_col="sup=0.05", csvfile = "/home/marc/projects/early_rnn/data/early_reward.csv"):
 
     relclass_col, ects_col, edsc_col = choose_params(alpha)
 
@@ -137,7 +137,7 @@ def parse_winloose_score_accuracy_only(dataframe, compare="mori", alpha=None, mo
         return r"{won} / {lost}".format(won = won, lost=lost)
 
 
-def parse_sota(mode="score", runscsv = "data/sota_comparison/runs.csv", comparepath="data/morietal2017"):
+def parse_sota(mode="score", runscsv = "/home/marc/projects/early_rnn/data/early_reward.csv", comparepath="data/morietal2017"):
 
     approaches = ["mori", "relclass", "edsc", "ects"] # "e0",
 
@@ -158,7 +158,7 @@ def parse_sota(mode="score", runscsv = "data/sota_comparison/runs.csv", comparep
         def load_ours(ptsepsilon, entropy_factor):
             df = pd.read_csv(runscsv)
             df = df.loc[df.ptsepsilon == ptsepsilon]
-            df = df.loc[df.entropy_factor == entropy_factor]
+            #df = df.loc[df.entropy_factor == entropy_factor]
             ours = df.loc[df.earliness_factor == alpha].set_index("dataset")[["accuracy", "earliness"]].sort_values(by="accuracy")
             return ours.groupby(ours.index).mean() #ours[~ours.index.duplicated(keep='first')]
 
@@ -275,7 +275,8 @@ def parse_accuracy_all():
         ects = load("data/morietal2017/ects-{}-strict-method.csv", ects_col, "ects")
 
         # ours regularized based on beta = 0.01 and epsilon=5/T
-        df = pd.read_csv("data/sota_comparison/runs.csv")
+        #df = pd.read_csv("data/sota_comparison/runs.csv")
+        df = pd.read_csv("/home/marc/projects/early_rnn/data/early_reward.csv")
         ours = df.loc[df.earliness_factor == alpha].set_index("dataset")[["accuracy", "earliness"]].sort_values(
             by="accuracy")
         ours = ours[~ours.index.duplicated(keep='first')]
