@@ -50,18 +50,21 @@ def run_experiment(args):
     #experiment_name = args.dataset
     datasets = get_datasets_from_hyperparametercsv(args.hyperparametercsv)
 
+    import random
+    random.shuffle(datasets)
+
     if args.experiment == "early_reward":
         config = dict(
                 batchsize=args.batchsize,
                 workers=2,
                 epochs=100, # will be overwritten by training_iteration criterion
                 switch_epoch=-1,
-                earliness_factor=tune.grid_search([0.25, 0.5, 0.75]),
-                ptsepsilon=tune.grid_search([10, 5, 0]),
+                earliness_factor=tune.grid_search([0.75, 0.5, 0.25]),
+                ptsepsilon=tune.grid_search([0, 5, 10]),
                 hyperparametercsv=args.hyperparametercsv,
-                warmup_steps=tune.grid_search([5, 10, 20]),
+                warmup_steps=tune.grid_search([20, 10, 0]),
                 dataset=tune.grid_search(datasets),
-                drop_probability=tune.grid_search([0.25, 0.5, 0.75]),
+                drop_probability=tune.grid_search([0.75, 0.5, 0.25]),
                 loss_mode="early_reward" # tune.grid_search(["twophase_linear_loss","twophase_cross_entropy"]),
             )
 
@@ -157,7 +160,8 @@ def run_experiment(args):
                 "local_dir":args.local_dir
             }
         },
-        verbose=0)
+        verbose=0,
+	resume=True)
 
 def run_experiment_on_datasets(args):
     """
