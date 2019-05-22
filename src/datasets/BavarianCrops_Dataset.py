@@ -13,7 +13,7 @@ PADDING_VALUE = -1
 
 class BavarianCropsDataset(torch.utils.data.Dataset):
 
-    def __init__(self, root, region=None, partition="train", nsamples=None, samplet=70, classmapping=None):
+    def __init__(self, root, region=None, partition="train", nsamples=None, samplet=70, classmapping=None, ndvi=False):
         """
 
         :param root:
@@ -27,6 +27,10 @@ class BavarianCropsDataset(torch.utils.data.Dataset):
         self.partition = partition
         self.data_folder = "{root}/csv/{region}".format(root=self.root, region=self.region)
         self.samplet = samplet
+        self.ndvi = ndvi
+        self.nsamples = nsamples
+        if self.nsamples==-1:
+            self.nsamples=None
 
         #all_csv_files
         #self.csvfiles = [ for f in os.listdir(root)]
@@ -53,8 +57,48 @@ class BavarianCropsDataset(torch.utils.data.Dataset):
 
         self.sequencelength = self.sequencelength
 
+        if self.nsamples is not None:
+            idxs = np.random.choice(len(self.ids), self.nsamples)
+            self.X = self.X[idxs]
+            self.y = self.y[idxs]
+            self.ids = self.ids[idxs]
+            print("--nsamples argument provided... using only {} elements from the dataset".format(self.nsamples))
+
+        # if use only ndvi index instead
+        if self.ndvi:
+            self.ndims=1
+
         print("loaded {} samples".format(len(self.ids)))
         #print("class frequencies " + ", ".join(["{c}:{h}".format(h=h, c=c) for h, c in zip(self.hist, self.classes)]))
+
+    def read_ids(self, partition):
+        if partition == "trainvalid":
+            ids_file_train = os.path.join(self.root, "ids",
+                                          "{region}_{partition}.txt".format(region=self.region.lower(),
+                                                                            partition="train"))
+            with open(ids_file_train, "r") as f:
+                train_ids = [int(id) for id in f.readlines()]
+            print("Found {} ids in {}".format(len(train_ids), ids_file_train))
+
+            ids_file_valid = os.path.join(self.root, "ids",
+                                          "{region}_{partition}.txt".format(region=self.region.lower(),
+                                                                            partition="valid"))
+            with open(ids_file_valid, "r") as f:
+                valid_ids = [int(id) for id in f.readlines()]
+
+            print("Found {} ids in {}".format(len(valid_ids), ids_file_valid))
+
+            ids = train_ids + valid_ids
+
+        elif partition in ["train", "valid", "eval"]:
+            ids_file = os.path.join(self.root, "ids",
+                                    "{region}_{partition}.txt".format(region=self.region.lower(), partition=partition))
+            with open(ids_file, "r") as f:
+                ids = [int(id) for id in f.readlines()]
+
+            print("Found {} ids in {}".format(len(ids), ids_file))
+
+        return ids
 
     def cache_dataset(self):
         """
@@ -62,11 +106,12 @@ class BavarianCropsDataset(torch.utils.data.Dataset):
         X is loaded at with getitem
         """
 
-        ids_file = os.path.join(self.root,"ids","{region}_{partition}.txt".format(region=self.region.lower(), partition=self.partition))
-        with open(ids_file,"r") as f:
-            ids = [int(id) for id in f.readlines()]
+        #ids_file = os.path.join(self.root,"ids","{region}_{partition}.txt".format(region=self.region.lower(), partition=self.partition))
+        #with open(ids_file,"r") as f:
+        #    ids = [int(id) for id in f.readlines()]
+        ids = self.read_ids(self.partition)
 
-        print("Found {} ids in {}".format(len(ids),ids_file))
+        #print("Found {} ids in {}".format(len(ids),ids_file))
 
         self.X = list()
         self.nutzcodes = list()
@@ -226,6 +271,13 @@ class BavarianCropsDataset(torch.utils.data.Dataset):
             idxs.sort()
             X = X[idxs]
             y = y[idxs]
+
+        if self.ndvi:
+            B08 = X[:, 10]  # Near infrared
+            B04 = X[:, 6]  # red channel
+            X = (B08 - B04) / (B08 + B04)
+            X = X.reshape(-1,1) # add dimension -> (samplet x 1)
+            #X = X.un
 
 
         X = torch.from_numpy(X).type(torch.FloatTensor)

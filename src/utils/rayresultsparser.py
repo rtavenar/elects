@@ -167,4 +167,4 @@ if __name__=="__main__":
     #                      outcsv="../viz/data/sota_comparison/runs.csv")
 
     parse_early_reward_experiment(path="/data/remote/early_rnn/early_reward",
-                          outcsv="../viz/data/sota_comparison/early_reward.csv")
+                          outcsv="/home/marc/projects/early_rnn/data/early_reward.csv")

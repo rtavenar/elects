@@ -59,6 +59,9 @@ def parse_args():
         help='ratio of splitting the train dataset in training and validation partitions. '
              'only applies for --train_on train and --test_on valid. see also --train-valid-split-seed')
     parser.add_argument(
+        '--nsamples', type=int, default=None,
+        help='use only n examples from the dataset (this artificially reduces the datasize)')
+    parser.add_argument(
         '--augment_data_noise', type=float, default=0., help='augmentation data noise factor. defaults to 0.')
     parser.add_argument(
         '-a','--earliness_factor', type=float, default=1, help='earliness factor')
@@ -73,6 +76,10 @@ def parse_args():
                         help="resume optimizer state as well (may lead to smaller learning rates")
     parser.add_argument('--overwrite', action='store_true',
                         help="Overwrite automatic snapshots if they exist")
+    parser.add_argument('--ndvi', action='store_true',
+                        help="only applies do BavarianCrops dataset calculate and use only normalized difference vegetation index (NDVI)")
+    parser.add_argument('--no-visdom', action='store_true',
+                        help="dont send visdom logs")
     parser.add_argument('--skip', action='store_true',
                         help="skip dataset completely if already exists...")
     parser.add_argument(
@@ -175,7 +182,9 @@ def train(args):
                                     train_valid_split_seed=args.train_valid_split_seed,
                                     region=region,
                                     classmapping=args.classmapping,
-                                    seed=args.seed)
+                                    seed=args.seed,
+                                    ndvi=args.ndvi,
+                                    nsamples=args.nsamples)
 
     testdataloader = getDataloader(dataset=args.dataset,
                                    partition=args.test_on,
@@ -187,7 +196,9 @@ def train(args):
                                    train_valid_split_seed=args.train_valid_split_seed,
                                    region=region,
                                    classmapping=args.classmapping,
-                                   seed=args.seed)
+                                   seed=args.seed,
+                                   ndvi=args.ndvi,
+                                   nsamples=args.nsamples)
 
     #evaldataloader = getDataloader(dataset=args.dataset,
     #                               partition="eval",
@@ -204,7 +215,10 @@ def train(args):
     args.input_dims = traindataloader.dataset.ndims
     model = getModel(args)
     # np.array([np.array(p.shape).prod() for p in model.parameters()]).sum()
-    visdomenv = "{}_{}_{}".format(args.experiment, args.dataset, args.loss_mode.replace("_","-"))
+    if not args.no_visdom:
+        visdomenv = "{}_{}_{}".format(args.experiment, args.dataset, args.loss_mode.replace("_","-"))
+    else:
+        visdomenv = None
 
     print("Visdom Environment: {}".format(visdomenv))
 
@@ -234,7 +248,7 @@ def train(args):
 
     pass
 
-def getDataloader(dataset, partition, train_valid_split_ratio=0.75,seed=None, **kwargs):
+def getDataloader(dataset, partition, train_valid_split_ratio=0.75,seed=None, ndvi=False, nsamples=None, **kwargs):
 
     if seed is None:
         # ensure the batchsing sequence is the same at different runs
@@ -248,7 +262,7 @@ def getDataloader(dataset, partition, train_valid_split_ratio=0.75,seed=None, **
         torchdataset = SyntheticDataset(num_samples=2000, T=100)
     if dataset == "BavarianCrops":
         root = "/home/marc/data/BavarianCrops"
-        torchdataset = BavarianCropsDataset(root=root, region=kwargs["region"], partition=partition, nsamples=None, classmapping=kwargs["classmapping"])
+        torchdataset = BavarianCropsDataset(root=root, region=kwargs["region"], partition=partition, nsamples=nsamples, classmapping=kwargs["classmapping"], ndvi=ndvi)
     else:
         torchdataset = UCRDataset(dataset, partition=partition, ratio=train_valid_split_ratio, randomstate=seed)
 

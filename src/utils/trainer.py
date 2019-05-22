@@ -173,15 +173,15 @@ class Trainer():
                 stats = self.test_epoch(self.validdataloader)
                 self.logger.log(stats, self.epoch)
                 printer.print(stats, self.epoch, prefix="\nvalid: ")
-                self.visdom_log_test_run(stats)
+                if hasattr(self,"visdom"): self.visdom_log_test_run(stats)
 
-            self.visdom.plot_epochs(self.logger.get_data())
+            if hasattr(self,"visdom"): self.visdom.plot_epochs(self.logger.get_data())
 
         self.check_events()
 
         # stores all stored values in the rootpath of the logger
-        if self.save_logger:
-            self.logger.save()
+        #if self.save_logger:
+        self.logger.save()
 
 
 
@@ -193,30 +193,30 @@ class Trainer():
         #self.optimizer.update_lr()
 
     def visdom_log_test_run(self, stats):
+        if hasattr(self, 'visdom'):
 
+            if hasattr(self.traindataloader.dataset,"samplet"):
+                self.visdom.plot_boxplot(labels=stats["labels"], t_stops=stats["t_stops"], tmin=0, tmax=self.traindataloader.dataset.samplet)
 
-        if hasattr(self.traindataloader.dataset,"samplet"):
-            self.visdom.plot_boxplot(labels=stats["labels"], t_stops=stats["t_stops"], tmin=0, tmax=self.traindataloader.dataset.samplet)
+            self.visdom.confusion_matrix(stats["confusion_matrix"], norm=None, title="Confusion Matrix")
+            self.visdom.confusion_matrix(stats["confusion_matrix"], norm=0, title="Recall")
+            self.visdom.confusion_matrix(stats["confusion_matrix"], norm=1, title="Precision")
+            legend = ["class {}".format(c) for c in range(self.nclasses)]
+            targets = stats["targets"]
+            # either user-specified value or all available values
+            n_samples = self.show_n_samples if self.show_n_samples < targets.shape[0] else targets.shape[0]
 
-        self.visdom.confusion_matrix(stats["confusion_matrix"], norm=None, title="Confusion Matrix")
-        self.visdom.confusion_matrix(stats["confusion_matrix"], norm=0, title="Recall")
-        self.visdom.confusion_matrix(stats["confusion_matrix"], norm=1, title="Precision")
-        legend = ["class {}".format(c) for c in range(self.nclasses)]
-        targets = stats["targets"]
-        # either user-specified value or all available values
-        n_samples = self.show_n_samples if self.show_n_samples < targets.shape[0] else targets.shape[0]
+            for i in range(n_samples):
+                classid = targets[i, 0]
 
-        for i in range(n_samples):
-            classid = targets[i, 0]
-
-            if len(stats["probas"].shape) == 3:
-                self.visdom.plot(stats["probas"][:, i, :], name="sample {} P(y) (class={})".format(i, classid),
-                                 fillarea=True,
-                                 showlegend=True, legend=legend)
-            self.visdom.plot(stats["inputs"][i, :, 0], name="sample {} x (class={})".format(i, classid))
-            if "pts" in stats.keys(): self.visdom.bar(stats["pts"][i, :], name="sample {} P(t) (class={})".format(i, classid))
-            if "deltas" in stats.keys(): self.visdom.bar(stats["deltas"][i, :], name="sample {} deltas (class={})".format(i, classid))
-            if "budget" in stats.keys(): self.visdom.bar(stats["budget"][i, :], name="sample {} budget (class={})".format(i, classid))
+                if len(stats["probas"].shape) == 3:
+                    self.visdom.plot(stats["probas"][:, i, :], name="sample {} P(y) (class={})".format(i, classid),
+                                     fillarea=True,
+                                     showlegend=True, legend=legend)
+                self.visdom.plot(stats["inputs"][i, :, 0], name="sample {} x (class={})".format(i, classid))
+                if "pts" in stats.keys(): self.visdom.bar(stats["pts"][i, :], name="sample {} P(t) (class={})".format(i, classid))
+                if "deltas" in stats.keys(): self.visdom.bar(stats["deltas"][i, :], name="sample {} deltas (class={})".format(i, classid))
+                if "budget" in stats.keys(): self.visdom.bar(stats["budget"][i, :], name="sample {} budget (class={})".format(i, classid))
 
     def get_phase(self):
         if self.epoch < self.switch_epoch:
