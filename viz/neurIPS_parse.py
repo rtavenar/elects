@@ -19,6 +19,10 @@ def main():
     ours_best_score = ours.iloc[ours.reset_index().groupby("dataset")["score"].idxmax()]
     ours_best_score = ours_best_score.set_index("dataset")
 
+    filename="/home/marc/projects/early_rnn/data/ours_best_scores.csv"
+    print("writing " + filename)
+    ours_best_score.to_csv(filename)
+
     #### MORI
     mori = load_mori(mori_accuracy_path, mori_earliness_path)
     mori_best_score = mori.iloc[mori.reset_index().groupby("Dataset")["score"].idxmax()]
@@ -90,7 +94,7 @@ def print_comparison(df,approach, greater_is_better=True):
     else:
         better = (df["ours"] < df[approach]).sum()
 
-    return str(better) + "/" + str(len(df[approach]))
+    return str(better) + "/" + str(len(df[approach])-better)
 
 
 
