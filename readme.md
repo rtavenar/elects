@@ -1,20 +1,26 @@
 End-to-end Learning for Early Classification of Time Series (ELECTS)
 ===
 
-### Paper
-
-https://arxiv.org/abs/1901.10681
-
 <img width=200px src="docs/conv1d.png"/>
 
-### Doc repositories
+### Runs (visdom)
 
-for paper see https://github.com/MarcCoru/ICML19
+Gunpoint
+<img width=200px src="docs/GunPoint_run.png"/>
 
-for presentation see github.com/MarcCoru/early_classification.git
+Wafer
+<img width=200px src="docs/Wafer_run.png"/>
+
+EGC
+<img width=200px src="docs/EGC_run.png"/>
+
+Remote Sensing Dataset
+<img width=200px src="docs/visdom_bavariancrops.png"/>
+
+
 
 ### Download data
 
-```angular2
+```bash
 wget https://s3.eu-central-1.amazonaws.com/corupublic/early_rnn.zip
 ```
