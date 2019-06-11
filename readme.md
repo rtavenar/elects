@@ -6,16 +6,20 @@ End-to-end Learning for Early Classification of Time Series (ELECTS)
 ### Runs (visdom)
 
 Gunpoint
-<img width=200px src="docs/GunPoint_run.png"/>
+
+<img width=100% src="docs/GunPoint_run.png"/>
 
 Wafer
-<img width=200px src="docs/Wafer_run.png"/>
+
+<img width=100% src="docs/Wafer_run.png"/>
 
 EGC
-<img width=200px src="docs/EGC_run.png"/>
+
+<img width=100% src="docs/EGC_run.png"/>
 
 Remote Sensing Dataset
-<img width=200px src="docs/visdom_bavariancrops.png"/>
+
+<img width=100% src="docs/visdom_bavariancrops.png"/>
 
 
 
