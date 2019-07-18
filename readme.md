@@ -1,6 +1,11 @@
 End-to-end Learning for Early Classification of Time Series (ELECTS)
 ===
 
+Execute single run
+```angular2
+-d BavarianCrops -m DualOutputRNN --epsilon 10 --loss_mode early_reward -x test --earliness_reward_power 1 --train_on train --test_on valid -r 64 -n 4 -e 60 -s -1 -b 1024 --warmup-steps 100 --classmapping /home/marc/data/BavarianCrops/classmapping.csv.holl --dropout 0.5 -w 16 -i 1 -a .4 --store /tmp/test --overwrite
+```
+
 <img width=200px src="docs/conv1d.png"/>
 
 ### Runs (visdom)
