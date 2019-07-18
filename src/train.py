@@ -43,7 +43,7 @@ def parse_args():
     parser.add_argument(
         '--dropout', type=float, default=.2, help='dropout probability of the rnn layer')
     parser.add_argument(
-        '--epsilon', type=float, default=.2, help='bias factor to add on P(t) as a regularization parameter')
+        '--epsilon', type=float, default=0, help='bias factor to add on P(t) as a regularization parameter')
     parser.add_argument(
         '-n', '--num_layers', type=int, default=1, help='number of stacked layers. will be interpreted as stacked '
                                                         'RNN layers for recurrent models and as number of convolutions'
