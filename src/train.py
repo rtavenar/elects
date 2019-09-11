@@ -14,6 +14,8 @@ import numpy as np
 from models.wavenet_model import WaveNetModel
 from torch.utils.data.sampler import RandomSampler, SequentialSampler, BatchSampler, WeightedRandomSampler
 from sampler.imbalanceddatasetsampler import ImbalancedDatasetSampler
+from datasets.UniformCrops_Dataset import UniformDataset
+
 def parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument(
@@ -260,9 +262,17 @@ def getDataloader(dataset, partition, train_valid_split_ratio=0.75,seed=None, nd
 
     if dataset == "synthetic":
         torchdataset = SyntheticDataset(num_samples=2000, T=100)
-    if dataset == "BavarianCrops":
+    elif dataset == "BavarianCrops":
         root = "/home/marc/data/BavarianCrops"
         torchdataset = BavarianCropsDataset(root=root, region=kwargs["region"], partition=partition, nsamples=nsamples, classmapping=kwargs["classmapping"], ndvi=ndvi)
+    elif "UniformCrops" in dataset:
+
+        nsamples = dataset.split("_")[-1]
+
+        root = "/home/marc/projects/EarlyClassification/Databases/"
+        dataset = "BavarianCrops_uniform_" + nsamples
+
+        torchdataset = UniformDataset(os.path.join(root,dataset), partition=partition)
     else:
         torchdataset = UCRDataset(dataset, partition=partition, ratio=train_valid_split_ratio, randomstate=seed)
 
@@ -272,6 +282,7 @@ def getDataloader(dataset, partition, train_valid_split_ratio=0.75,seed=None, nd
         sampler = RandomSampler(torchdataset)
     else:
         sampler = SequentialSampler(torchdataset)
+
     # for training dataset -> shuffle is true
 
     dataloader = torch.utils.data.DataLoader(dataset=torchdataset,
