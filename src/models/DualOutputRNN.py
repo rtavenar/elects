@@ -33,10 +33,13 @@ class DualOutputRNN(EarlyClassificationModel):
             self.inlayernorm = nn.LayerNorm(input_dim)
             self.lstmlayernorm = nn.LayerNorm(hidden_dims)
 
-        self.inpad = nn.ConstantPad1d((3, 0), 0)
-        self.inconv = nn.Conv1d(in_channels=input_dim,
-                  out_channels=hidden_dims,
-                  kernel_size=3)
+        if False:
+            self.inpad = nn.ConstantPad1d((3, 0), 0)
+            self.inconv = nn.Conv1d(in_channels=input_dim,
+                      out_channels=hidden_dims,
+                      kernel_size=3)
+        else:
+            self.in_linear = nn.Linear(input_dim, hidden_dims, bias=True)
 
         self.lstm = nn.LSTM(input_size=hidden_dims, hidden_size=hidden_dims, num_layers=num_rnn_layers,
                             bias=False, batch_first=True, dropout=dropout, bidirectional=bidirectional)
@@ -83,19 +86,22 @@ class DualOutputRNN(EarlyClassificationModel):
         # b,d,t -> b,t,d
         b, t, d = x.shape
 
-        # pad left
-        x_padded = self.inpad(x.transpose(1,2))
-        # conv
-        x = self.inconv(x_padded).transpose(1,2)
-        # cut left side of convolved length
-        x = x[:, -t:, :]
+        if False:
+            # pad left
+            x_padded = self.inpad(x.transpose(1,2))
+            # conv
+            x = self.inconv(x_padded).transpose(1,2)
+            # cut left side of convolved length
+            x = x[:, -t:, :]
+        else:
+            x = self.in_linear(x)
 
         #packed = torch.nn.utils.rnn.pack_padded_sequence(x.transpose(1,2), lengths, batch_first=True)
         outputs, last_state_list = self.lstm.forward(x)
         #outputs, _ = torch.nn.utils.rnn.pad_packed_sequence(outputs, batch_first=True)
 
-        if self.use_layernorm:
-            outputs = self.lstmlayernorm(outputs)
+        #if self.use_layernorm:
+            #outputs = self.lstmlayernorm(outputs)
 
         if self.use_batchnorm:
             b,t,d = outputs.shape

@@ -34,7 +34,7 @@ def build_yhaty(logprobabilities, targets):
     targets_one_hot = eye[targets]
 
     # implement the y*\hat{y} part of the loss function
-    y_haty = torch.masked_select(logprobabilities, targets_one_hot)
+    y_haty = torch.masked_select(logprobabilities, targets_one_hot.bool())
     return y_haty.view(batchsize, seqquencelength).exp()
 
 

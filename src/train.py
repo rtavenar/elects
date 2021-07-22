@@ -263,8 +263,8 @@ def getDataloader(dataset, partition, train_valid_split_ratio=0.75,seed=None, nd
     if dataset == "synthetic":
         torchdataset = SyntheticDataset(num_samples=2000, T=100)
     elif dataset == "BavarianCrops":
-        root = "/home/marc/data/BavarianCrops"
-        torchdataset = BavarianCropsDataset(root=root, region=kwargs["region"], partition=partition, nsamples=nsamples, classmapping=kwargs["classmapping"], ndvi=ndvi)
+        root = "/ssd/BavarianCrops"
+        torchdataset = BavarianCropsDataset(root=root, region="holl", partition=partition, nsamples=nsamples, classmapping=kwargs["classmapping"], ndvi=ndvi)
     elif "UniformCrops" in dataset:
 
         nsamples = dataset.split("_")[-1]

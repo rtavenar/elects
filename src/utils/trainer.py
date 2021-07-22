@@ -85,7 +85,7 @@ class Trainer():
             self.resumed_run = True
 
         logging.debug(self.model)
-        logging.debug(self.optimizer._optimizer)
+        #logging.debug(self.optimizer._optimizer)
         logging.debug("traindataloader")
         logging.debug(traindataloader.sampler)
 
