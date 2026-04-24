@@ -2,7 +2,7 @@ numpy
 psutil
 torch
 pandas
-ray==2.54.0
+ray==2.55.0
 seaborn
 cython
 matplotlib
